@@ -1,6 +1,4 @@
-
-
-# 🚀 TryHackMe: Valenfield 
+#  TryHackMe: Valenfield 
 
 Neste laboratório, apresento o passo a passo detalhado da exploração do ambiente e captura da flag na sala **Valenfield** da plataforma TryHackMe. O objetivo deste *write-up* é documentar a resolução de forma didática, detalhando a metodologia ofensiva aplicada e o raciocínio técnico por trás de cada vetor de ataque descoberto.
 
@@ -26,7 +24,7 @@ nmap -sV -sC -Pn <IP_DA_SALA>
 * **Porta 22/tcp:** OpenSSH 9.6p1 (Ubuntu Linux)
 * **Porta 5000/tcp:** Werkzeug httpd 3.0.1 (Ambiente Python 3.12.3)
 
-<img width="1201" height="268" alt="image" src="https://github.com/user-attachments/assets/5fa2df4a-11f1-4ad4-aa5b-ff6d7ecbf383" />
+<img width="1201" height="268" alt="Captura de tela 2026-06-23 104321" src="https://github.com/user-attachments/assets/cd08bc11-9ed2-4eb1-a4f3-287e1991e358" />
 
 
 A presença do servidor **Werkzeug** na porta 5000 indica fortemente que a aplicação web backend foi construída utilizando o framework **Flask** ou **FastAPI**.
@@ -47,7 +45,7 @@ gobuster dir -u http://10.64.162.121:5000 -w /usr/share/wordlists/dirb/common.tx
 * `/dashboard` (Status: 302 -> Redirecionamento para /login)
 * `/logout` (Status: 302)
 
-<img width="1421" height="647" alt="image" src="https://github.com/user-attachments/assets/5f0ef461-67c1-441c-b4be-0b6432a11258" />
+<img width="1421" height="648" alt="Captura de tela 2026-06-23 105221" src="https://github.com/user-attachments/assets/dd3a7cc3-3802-4384-b957-e7ed6ff97cbe" />
 
 A estrutura retornada aponta para um ecossistema clássico de autenticação de usuários.
 
@@ -60,9 +58,8 @@ Paralelamente à execução das ferramentas de automação, realizei a exploraç
 1. Realizei o cadastro de um usuário de testes na rota `/register`.
 2. Efetuei a autenticação para acessar o painel principal (`/dashboard`).
 
-<img width="1915" height="843" alt="Captura de tela 2026-06-23 104931" src="https://github.com/user-attachments/assets/1e5652d2-3c64-4572-a94a-88546ffe1cff" />
+<img width="1917" height="861" alt="Captura de tela 2026-06-23 104949" src="https://github.com/user-attachments/assets/39ad1aaa-540f-4236-b278-f6a764c08559" />
 
-<img width="1917" height="861" alt="Captura de tela 2026-06-23 104949" src="https://github.com/user-attachments/assets/5f78accd-db94-49c6-9200-d287ded507e2" />
 
 ### A Pista Crucial
 
@@ -70,7 +67,7 @@ Navegando pelos perfis disponíveis na plataforma, encontrei uma conta sob o nom
 
 > *"I keep the database secure. No peeking."* *(Eu mantenho o banco de dados seguro. Nada de espiar).*
 
-<img width="1916" height="856" alt="image" src="https://github.com/user-attachments/assets/245ecdd4-f1dc-4e90-8e5b-7572e74a96f8" />
+<img width="1916" height="856" alt="Captura de tela 2026-06-23 105021" src="https://github.com/user-attachments/assets/a97850b4-edd0-4b26-84c4-fcde6643ce0f" />
 
 Esta mensagem funcionou como uma dica explícita de desenvolvimento seguro inadequado: o foco do desafio envolveria, de alguma forma, o vazamento ou a leitura não autorizada do banco de dados do servidor.
 
@@ -80,10 +77,9 @@ Esta mensagem funcionou como uma dica explícita de desenvolvimento seguro inade
 
 Utilizando o **Burp Suite**, analisei minuciosamente o tráfego HTTP gerado ao carregar componentes de estilização da página de perfis. Identifiquei uma chamada suspeita direcionada à API interna:
 
-`GET /api/fetch_layout?layout=theme_classic.html`
+`GET /api/fetch_layout?layout=theme_modern.html`
 
-<img width="1001" height="183" alt="image" src="https://github.com/user-attachments/assets/e911d35d-e649-4910-ad9d-6a147e0eaab9" />
-<img width="1577" height="696" alt="image" src="https://github.com/user-attachments/assets/e79021ec-8abb-459b-ae1d-23c8e03fab4b" />
+<img width="1577" height="696" alt="Captura de tela 2026-06-23 105456" src="https://github.com/user-attachments/assets/e40b17a5-c37f-49a0-9fff-da15fadb192e" />
 
 
 ### 3.1 Fundamentação Teórica da Falha
@@ -101,8 +97,7 @@ GET /api/fetch_layout?layout=../../../../../../../../etc/passwd
 ...
 
 ```
-
-<img width="1648" height="663" alt="image" src="https://github.com/user-attachments/assets/b337ffca-f0eb-4a9d-9f63-6e78d7a12dd1" />
+<img width="1649" height="664" alt="Captura de tela 2026-06-23 105852" src="https://github.com/user-attachments/assets/bd83bbe7-d05c-436d-a6a4-fe099b41cbec" />
 
 **Sucesso!** O servidor respondeu com o conteúdo íntegro do arquivo `/etc/passwd`. Além de confirmar o LFI, a leitura revelou a existência do usuário do sistema **`ubuntu`** (UID 1000).
 
@@ -115,12 +110,10 @@ Sabendo que o ecossistema é baseado em Python, o arquivo principal da aplicaç�
 Utilizando a falha de Path Traversal recém-descoberta, tentei retroceder diretórios a partir da pasta de componentes web para ler o arquivo estrutural do servidor:
 
 ```http
-GET /api/fetch_layout?layout=../app.py HTTP/1.1
+GET /api/fetch_layout?layout=../../app.py HTTP/1.1
 
 ```
-
-<img width="1548" height="367" alt="image" src="https://github.com/user-attachments/assets/c3079e7e-7cdd-4d8e-92b6-d9adbd57dcc2" />
-<img width="1692" height="656" alt="image" src="https://github.com/user-attachments/assets/a758305f-c150-4f93-980c-721fe5561e6b" />
+<img width="1692" height="656" alt="Captura de tela 2026-06-23 110643" src="https://github.com/user-attachments/assets/4e535370-ac19-43a6-bca6-c6205b09cd2b" />
 
 O servidor interpretou o comando com sucesso e expôs o código-fonte completo do backend em texto claro na resposta HTTP.
 
@@ -138,7 +131,6 @@ DATABASE = 'cupid.db'
 
 2. **Mapeamento de Rota Administrativa Privada:** Próximo ao fim do arquivo, foi identificada a rota `/api/admin/export_db`. Esta função permite o download direto do banco de dados, desde que a requisição forneça um cabeçalho HTTP customizado chamado `X-Valentine-Token` contendo a chave administrativa correspondente:
 
-<img width="698" height="198" alt="image" src="https://github.com/user-attachments/assets/dc93c411-62fa-48d6-8d30-1cb9f18e106a" />
 
 ---
 
@@ -146,7 +138,7 @@ DATABASE = 'cupid.db'
 
 Ao tentar acessar diretamente a rota administrativa no navegador (`http://10.64.162.121:5000/api/admin/export_db`), recebi, como esperado, uma mensagem de erro `403 Forbidden` devido à falta de credenciais no cabeçalho.
 
-<img width="1703" height="501" alt="image" src="https://github.com/user-attachments/assets/1b22a556-9d72-44f8-89ed-cb2184e7ad7d" />
+<img width="1704" height="501" alt="Captura de tela 2026-06-23 110819" src="https://github.com/user-attachments/assets/978d8923-8f7a-4255-bb76-08b0e9b31803" />
 
 ### 5.1 Forjando a Requisição no Burp Suite
 
@@ -159,14 +151,15 @@ X-Valentine-Token: CUPID_MASTER_KEY_2024_XOXO
 
 ```
 
-<img width="1638" height="718" alt="image" src="https://github.com/user-attachments/assets/d5f6bf74-fcc8-4ccf-8ed8-47c5fb5cec9d" />
+<img width="1639" height="719" alt="Captura de tela 2026-06-23 111118" src="https://github.com/user-attachments/assets/c095c74f-2a61-4395-9ae7-f74df4caa165" />
 
 
 ### 5.2 Coleta do Artefato e Flag Final
 
 Ao enviar a requisição forjada, o servidor validou com sucesso a assinatura do cabeçalho `X-Valentine-Token`. O backend respondeu com o cabeçalho de download e o conteúdo binário puro estruturado do banco de dados SQLite (**`SQLite format 3`**).
 
-<img width="740" height="237" alt="image" src="https://github.com/user-attachments/assets/c9c79eef-f1bd-4927-941d-3d036b1c37b1" />
+<img width="740" height="237" alt="Captura de tela 2026-06-23 111208" src="https://github.com/user-attachments/assets/74d5007d-0ddc-41fc-8e5f-0dfeb376706e" />
+
 
 Inspecionando a resposta, localizei com sucesso a flag do desafio armazenada no banco.
 
